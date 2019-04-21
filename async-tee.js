@@ -3,60 +3,80 @@ import immediate from "p-immediate"
 import Deferrant from "deferrant"
 import AsyncTeeFork from "./async-tee-fork.js"
 
-export function AsyncIteratorTee( asyncIter, { notify= false, signal}= {}){
-	const self= this instanceof AsyncIteratorTee? this: {}
+let forkId= 0
 
-	// state is the existing data that's been seen, the 'tee'
-	self.state= []
-	// notify is a rotating signals listeners that there is new data
-	if( notify){
-		self.notify= Deferrant()
+export class AsyncIteratorTee{
+	constructor( asyncIter,{ notify= false, signal, lastValue}= {}){
+		// underlying iterator that we are "tee"'ing
+		this.asyncIter= asyncIter
+		// whether or not to store the return value
+		if( lastValue!== undefined){
+			this.lastValue= lastValue
+		}
+
+		// state is the existing data that's been seen, the 'tee'
+		this.state= []
+		// notify is a rotating signals listeners that there is new data
+		if( notify){
+			this.notify= Deferrant()
+		}
+
+		// pass through iterator values
+		this.value= null
+		this.done= false
 	}
 
-	// pass through iterator values
-	self.value= null
-	self.done= false
 	// implement iterator next
-	self.next= async function( arg){
+	async next( arg){
 		// get next value
-		const next= await asyncIter.next()
+		const next= await this.asyncIter.next()
 		// pass through next value
-		self.done= next.done
-		self.value= next.value
+		this.done= next.done
+		this.value= next.value
 
 		// append value to retained 'state'
-		if( self.state){
-			self.state.push( next.value)
+		OUTTER: if( this.state){
+			if( this.done){
+				if( this.lastValue=== false){
+					break OUTTER
+				}
+				if( this.lastValue!== true&& this.value=== undefined){
+					break OUTTER
+				}
+			}
+			this.state.push( next.value)
 		}
 
 		// notify any listeners
-		if( self.notify){
-			const old= self.notify
-			self.notify= next.done? Promise.resolve(): Deferrant()
+		if( this.notify){
+			const old= this.notify
+			this.notify= next.done? Promise.resolve(): Deferrant()
 			old.resolve( next.value)
 		}
-		return self
+		return this
 	}
 
-	// 
-	self[ Symbol.asyncIterator]= function(){
+	[ Symbol.asyncIterator](){
+		if( this.forkId){
+			return this.tee()
+		}
+		this.forkId= ++forkId
 		return this
 	}
 
 	// give an iteration of existing state data to anyone who asks
-	self[ Symbol.iterator]= function(...args){
+	[ Symbol.iterator](...args){
 		// look at retained state
-		const iteration= self.state&& self.state[ Symbol.iterator]
+		const iteration= this.state&& this.state[ Symbol.iterator]
 		if( iteration){
 			// & iterate through it all
-			return iteration.call( self.state, ...args)
+			return iteration.call( this.state, ...args)
 		}
 	}
 
-
 	// create a "fork" which reads via notify
-	self.tee= function(){
-		return new AsyncTeeFork(self)
+	tee(){
+		return new AsyncTeeFork( this)
 	}
 }
 export {
