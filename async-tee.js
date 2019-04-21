@@ -6,12 +6,12 @@ import AsyncTeeFork from "./async-tee-fork.js"
 let forkId= 0
 
 export class AsyncIteratorTee{
-	constructor( asyncIter,{ notify= false, signal}= {}){
+	constructor( asyncIter,{ notify= false, signal, filter, state}= {}){
 		// underlying iterator that we are "tee"'ing
 		this.asyncIter= asyncIter
 
 		// state is the existing data that's been seen, the 'tee'
-		this.state= []
+		this.state= state instanceof Function? state( this): state|| []
 		this.returnValue= undefined
 		// notify is a rotating signals listeners that there is new data
 		if( notify){
@@ -60,9 +60,8 @@ export class AsyncIteratorTee{
 				this.asyncIter= null
 			}
 		// if we are keeping state, add it
-		}else if( this.state){
-			// enqueue normal values
-			this.state.push( next.value)
+		}else if( this.push){
+			this.push( next.value)
 		}
 
 		// notify any listeners
@@ -100,6 +99,12 @@ export class AsyncIteratorTee{
 	// create a "fork" which reads via notify
 	tee( opts){
 		return new AsyncTeeFork( this, opts)
+	}
+
+	push( state){
+		if( this.state){
+			this.state.push( state)
+		}
 	}
 }
 export {
