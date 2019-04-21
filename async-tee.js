@@ -1,8 +1,10 @@
+"use module"
 import immediate from "p-immediate"
 import Deferrant from "deferrant"
+import AsyncTeeFork from "./async-tee-fork.js"
 
-export function asyncIteratorTee( asyncIter, { notify= false, signal}= {}){
-	const self= this instanceof asyncIteratorTee? this: {}
+export function AsyncIteratorTee( asyncIter, { notify= false, signal}= {}){
+	const self= this instanceof AsyncIteratorTee? this: {}
 
 	// state is the existing data that's been seen, the 'tee'
 	self.state= []
@@ -36,15 +38,28 @@ export function asyncIteratorTee( asyncIter, { notify= false, signal}= {}){
 		return self
 	}
 
+	// 
+	self[ Symbol.asyncIterator]= function(){
+		return this
+	}
+
 	// give an iteration of existing state data to anyone who asks
-	self[ Symbol.iterator]= function(){
+	self[ Symbol.iterator]= function(...args){
 		// look at retained state
 		const iteration= self.state&& self.state[ Symbol.iterator]
 		if( iteration){
 			// & iterate through it all
-			return iteration.call( self.state)
+			return iteration.call( self.state, ...args)
 		}
 	}
 
-	return self
+
+	// create a "fork" which reads via notify
+	self.tee= function(){
+		return new AsyncTeeFork(self)
+	}
+}
+export {
+  AsyncIteratorTee as default,
+  AsyncIteratorTee as asyncIteratorTee
 }
