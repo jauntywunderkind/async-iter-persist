@@ -6,16 +6,13 @@ import AsyncTeeFork from "./async-tee-fork.js"
 let forkId= 0
 
 export class AsyncIteratorTee{
-	constructor( asyncIter,{ notify= false, signal, lastValue}= {}){
+	constructor( asyncIter,{ notify= false, signal}= {}){
 		// underlying iterator that we are "tee"'ing
 		this.asyncIter= asyncIter
-		// whether or not to store the return value
-		if( lastValue!== undefined){
-			this.lastValue= lastValue
-		}
 
 		// state is the existing data that's been seen, the 'tee'
 		this.state= []
+		this.returnValue= undefined
 		// notify is a rotating signals listeners that there is new data
 		if( notify){
 			this.notify= Deferrant()
@@ -24,6 +21,7 @@ export class AsyncIteratorTee{
 		// pass through iterator values
 		this.value= null
 		this.done= false
+		return this
 	}
 
 	// implement iterator next
@@ -34,16 +32,11 @@ export class AsyncIteratorTee{
 		this.done= next.done
 		this.value= next.value
 
-		// append value to retained 'state'
-		OUTTER: if( this.state){
-			if( this.done){
-				if( this.lastValue=== false){
-					break OUTTER
-				}
-				if( this.lastValue!== true&& this.value=== undefined){
-					break OUTTER
-				}
-			}
+		if( next.done){
+			// append value to retained 'state'
+			this.returnValue= next.value
+		}else if( this.state){
+			// enqueue normal values
 			this.state.push( next.value)
 		}
 
@@ -56,16 +49,16 @@ export class AsyncIteratorTee{
 		return this
 	}
 
-	[ Symbol.asyncIterator](){
+	[ Symbol.asyncIterator]( opts){
 		if( this.forkId){
-			return this.tee()
+			return this.tee( opts)
 		}
 		this.forkId= ++forkId
 		return this
 	}
 
 	// give an iteration of existing state data to anyone who asks
-	[ Symbol.iterator](...args){
+	[ Symbol.iterator]( ...args){
 		// look at retained state
 		const iteration= this.state&& this.state[ Symbol.iterator]
 		if( iteration){
@@ -75,8 +68,8 @@ export class AsyncIteratorTee{
 	}
 
 	// create a "fork" which reads via notify
-	tee(){
-		return new AsyncTeeFork( this)
+	tee( opts){
+		return new AsyncTeeFork( this, opts)
 	}
 }
 export {

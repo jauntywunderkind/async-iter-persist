@@ -3,16 +3,22 @@
 let forkId= 0
 
 export class AsyncTeeFork{
-	constructor( asyncTee){
+	constructor( asyncTee, options){
 		if( !asyncTee){
 			throw new Error( "Need an asyncTee")
 		}
+		// keep track of how much state we've seen
 		this.pos= 0
 		this.asyncTee= asyncTee
-		this.next= this.next.bind( this)
+		// iteration will return this promise. zalgo may be faster in some cases
+		// but generally async-iterators are expected to return promises I think
+		this.thisPromise= options&& options.zalgo? undefined: Promise.resolve( this)
 
+		// iteration members
+		this.next= this.next.bind( this)
 		this.done= false
 		this.value= undefined
+		return this
 	}
 	next(){
 		const state= this.asyncTee.state
@@ -25,11 +31,11 @@ export class AsyncTeeFork{
 			if( nextPos>= state.length&& this.asyncTee.done){
 				this.done= true
 			}
-			return this
+			return this.thisPromise|| this
 		}else if( this.asyncTee.done){
-			this.value= undefined
+			this.value= this.asyncTee.lastValue
 			this.done= true
-			return this
+			return this.thisPromise|| this
 		}
 		if( !this.asyncTee.notify){
 			throw new Error( "Need an asyncTee#notify")
