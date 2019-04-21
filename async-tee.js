@@ -17,6 +17,9 @@ export class AsyncIteratorTee{
 		if( notify){
 			this.notify= Deferrant()
 		}
+		if( filter){
+			this.filter= filter
+		}
 
 		// pass through iterator values
 		this.value= null
@@ -26,15 +29,37 @@ export class AsyncIteratorTee{
 
 	// implement iterator next
 	async next( arg){
+		// if we're done we should not do any more work
+		if( this.done){
+			return this
+		}
+
 		// get next value
 		const next= await this.asyncIter.next()
+
+		// filter has full power to modify any result
+		if( this.filter){
+			next= this.filter( next)
+			// return false to drop an element
+			if( !next){
+				// find the next element
+				return this.next()
+			}
+		}
+
 		// pass through next value
 		this.done= next.done
 		this.value= next.value
 
+		// look for termination
 		if( next.done){
 			// append value to retained 'state'
 			this.returnValue= next.value
+			if( !this.noCleanup){
+				// allow underlying iterator to be freed
+				this.asyncIter= null
+			}
+		// if we are keeping state, add it
 		}else if( this.state){
 			// enqueue normal values
 			this.state.push( next.value)
@@ -52,6 +77,11 @@ export class AsyncIteratorTee{
 	[ Symbol.asyncIterator]( opts){
 		if( this.forkId){
 			return this.tee( opts)
+		}else{
+			// doing this to be consistent with tee- it's kind of weird but ok
+			if( opts&& opts.filter){
+				this.filter= filter
+			}
 		}
 		this.forkId= ++forkId
 		return this
