@@ -13,6 +13,8 @@ export class AsyncIteratorTee{
 		// state is the existing data that's been seen, the 'tee'
 		this.state= state instanceof Function? state( this): state|| []
 		this.returnValue= undefined
+		// signals to AsyncTeeFork's that they ought clear
+		this.clearPromise= Deferrant()
 		// notify is a rotating signals listeners that there is new data
 		if( notify){
 			this.notify= Deferrant()
@@ -112,6 +114,13 @@ export class AsyncIteratorTee{
 
 	push( state){
 		this.state.push( state)
+	}
+
+	clear(){
+		const
+		  currentClear= this.clearPromise,
+		  nextClear= this.clearPromise= Deferrant()
+		currentClear.resolve({ next: this.clearPromise})
 	}
 
 	// this helps filters, who need to process either an AsyncTee or an AsyncTeeFork 'this':

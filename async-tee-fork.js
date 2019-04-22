@@ -15,9 +15,13 @@ export class AsyncTeeFork{
 		this.thisPromise= options&& options.zalgo? undefined: Promise.resolve( this)
 		if( options){
 			if( options.filter){
+				// filter has the chance to modify items coming through
 				this.filter= options.filter
 			}
 		}
+		// reset pos when parent signals clear
+		this.clear= this.clear.bind( this)
+		asyncTee.clearPromise.then( this.clear)
 
 		// iteration members
 		this.done= false
@@ -106,6 +110,17 @@ export class AsyncTeeFork{
 			return this
 		}
 		return new AsyncTeeFork( this.asyncTee)
+	}
+	clear( opts){
+		this.pos= 0
+		let nextClear= opts&& opts.nextClear
+		if( !nextClear){
+			nextClear= this.asyncTee.clearPromise
+		}
+		if( nextClear){
+			// prepare for another clear
+			nextClear.then( this.clear)
+		}
 	}
 }
 let unboundNext= AsyncTeeFork.prototype.next
