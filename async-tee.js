@@ -6,9 +6,9 @@ import AsyncTeeFork from "./async-tee-fork.js"
 let forkId= 0
 
 export class AsyncIteratorTee{
-	constructor( asyncIter,{ notify= false, signal, filter, state}= {}){
+	constructor( wrappedIterator,{ notify= false, signal, filter, state}= {}){
 		// underlying iterator that we are "tee"'ing
-		this.asyncIter= asyncIter
+		this.wrappedIterator= wrappedIterator
 
 		// state is the existing data that's been seen, the 'tee'
 		this.state= state instanceof Function? state( this): state|| []
@@ -105,6 +105,12 @@ export class AsyncIteratorTee{
 		if( this.state){
 			this.state.push( state)
 		}
+	}
+
+	// this helps filters, who need to process either an AsyncTee or an AsyncTeeFork 'this':
+	// exposing the kk
+	get asyncTee(){
+		return this
 	}
 }
 export {
