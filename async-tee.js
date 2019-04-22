@@ -28,39 +28,48 @@ export class AsyncIteratorTee{
 	}
 
 	// implement iterator next
-	async next( arg){
+	async next( ...inputs){
 		// if we're done we should not do any more work
 		if( this.done){
 			return this
 		}
 
 		// get next value
-		const next= await this.asyncIter.next()
+		const next= await this.wrappedIterator.next( ...inputs)
 
-		// filter has full power to modify any result
 		if( this.filter){
+			const wasDone= next.done
+
+			// filter has power to modify any result
 			next= this.filter( next)
+
+			// if we're done we're done, no avoiding that
+			if( wasDone){
+				this.done= wasDone
+			}
+
 			// return false to drop an element
 			if( !next){
 				// find the next element
-				return this.next()
+				return this.next( ...inputs)
 			}
 		}
 
 		// pass through next value
-		this.done= next.done
 		this.value= next.value
 
-		// look for termination
 		if( next.done){
-			// append value to retained 'state'
+			// we too are done
+			this.done= next.done
+			// capture returnValue
 			this.returnValue= next.value
+
 			if( !this.noCleanup){
 				// allow underlying iterator to be freed
-				this.asyncIter= null
+				this.wrappedIterator= null
 			}
-		// if we are keeping state, add it
 		}else if( this.push){
+			// if we are keeping state, add it
 			this.push( next.value)
 		}
 
