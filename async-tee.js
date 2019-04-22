@@ -111,9 +111,7 @@ export class AsyncIteratorTee{
 	}
 
 	push( state){
-		if( this.state){
-			this.state.push( state)
-		}
+		this.state.push( state)
 	}
 
 	// this helps filters, who need to process either an AsyncTee or an AsyncTeeFork 'this':
