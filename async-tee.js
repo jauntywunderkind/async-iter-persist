@@ -10,10 +10,11 @@ export class AsyncIteratorTee{
 		return []
 	}
 
-	constructor( wrappedIterator,{ notify= false, signal, filter, state, stateFactory}= {}){
+	constructor( wrappedIterator,{ notify= false, signal, filter, state, stateFactory, free, asyncTeeFork}= {}){
 		// underlying iterator that we are "tee"'ing
 		this.wrappedIterator= wrappedIterator
 
+		// initialize & clear via stateFactory
 		if( stateFactory){
 			this.stateFactory= stateFactory
 		}
@@ -29,6 +30,12 @@ export class AsyncIteratorTee{
 		if( filter){
 			this.filter= filter
 		}
+		if( free){
+			this.free= free
+		}
+		if( asyncTeeFork){
+			this.asyncTeeFork= asyncTeeFork
+		}
 
 		// pass through iterator values
 		this.value= null
@@ -37,58 +44,62 @@ export class AsyncIteratorTee{
 	}
 
 	// implement iterator next
-	async next( ...inputs){
+	async next( ...args){
 		// if we're done we should not do any more work
 		if( this.done){
 			return this
 		}
 
 		// get next value
-		const next= await this.wrappedIterator.next( ...inputs)
+		let next= await this.wrappedIterator.next( ...args)
+		const wasDone= next&& next.done
 
 		if( this.filter){
-			const wasDone= next.done
-
 			// filter has power to modify any result
 			next= this.filter( next)
+		}
 
-			// if we're done we're done, no avoiding that
+		if( !next){
 			if( wasDone){
+				// if we were done we're done, no avoiding that
+				this.value= undefined
 				this.done= wasDone
+				return this._next()
 			}
-
-			// return false to drop an element
-			if( !next){
-				// find the next element
-				return this.next( ...inputs)
-			}
+			// this element is missing, return the next element
+			return this.next( ...args)
 		}
 
 		// pass through next value
 		this.value= next.value
+		this.done= next.done|| wasDone
 
-		if( next.done){
-			// we too are done
-			this.done= next.done
-			// capture returnValue
+		if( this.done){
+			// terminate, capture returnValue
 			this.returnValue= next.value
-
-			if( !this.noCleanup){
-				// allow underlying iterator to be freed
-				this.wrappedIterator= null
-			}
-		}else if( this.push){
-			// if we are keeping state, add it
+		}else{
+			// or save
 			this.push( next.value)
 		}
 
-		// notify any listeners
+		return this._next()
+	}
+
+	_next(){
 		if( this.notify){
-			const old= this.notify
-			this.notify= next.done? Promise.resolve(): Deferrant()
-			old.resolve( next.value)
+			// notify any listeners
+			const oldNotify= this.notify
+			this.notify= this.done? Promise.resolve(): Deferrant()
+			oldNotify.resolve( this.value)
+		}
+		if( this.done){
+			// cleanup
+			this.free()
 		}
 		return this
+	}
+	free(){
+		this.wrappedIterator= null
 	}
 
 	[ Symbol.asyncIterator]( opts){
@@ -104,7 +115,9 @@ export class AsyncIteratorTee{
 		return this
 	}
 
-	// give an iteration of existing state data to anyone who asks
+	/**
+	* give an iteration of existing state data to anyone who asks
+	*/
 	[ Symbol.iterator]( ...args){
 		// look at retained state
 		const iteration= this.state&& this.state[ Symbol.iterator]
@@ -114,23 +127,37 @@ export class AsyncIteratorTee{
 		}
 	}
 
-	// create a "fork" which reads via notify
+	/**
+	* create a "fork" which reads via notify
+	*/
 	tee( opts){
-		return new AsyncTeeFork( this, opts)
+		return new (this.asyncTeeFork())( this, opts)
 	}
 
-	push( state){
-		this.state.push( state)
+	/**
+	* add `newItem` to our state
+	*/
+	push( newItem){
+		this.state.push( newItem)
 	}
 
 	clear(){
 		const
+		  // prepare to signal anyone awaiting this clear
 		  currentClear= this.clearPromise,
-		  nextClear= this.clearPromise= Deferrant()
-		this.state= this.stateFactory()
-		currentClear.resolve({ next: this.clearPromise})
+		  // set up a new signaller for the next clear
+		  clearPromise= this.clearPromise= Deferrant(),
+		  // actually clear our state
+		  state= this.state= this.stateFactory()
+		if( currentClear){
+			// do signal anyone awaiting this clear
+			currentClear.resolve()
+		}
 	}
 
+	asyncTeeFork(){
+		return AsyncTeeFork
+	}
 	stateFactory( ...args){
 		return this.constructor.stateFactory( ...args)
 	}
