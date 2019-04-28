@@ -6,12 +6,19 @@ import AsyncTeeFork from "./async-tee-fork.js"
 let forkId= 0
 
 export class AsyncIteratorTee{
-	constructor( wrappedIterator,{ notify= false, signal, filter, state}= {}){
+	static stateFactory(){
+		return []
+	}
+
+	constructor( wrappedIterator,{ notify= false, signal, filter, state, stateFactory}= {}){
 		// underlying iterator that we are "tee"'ing
 		this.wrappedIterator= wrappedIterator
 
+		if( stateFactory){
+			this.stateFactory= stateFactory
+		}
 		// state is the existing data that's been seen, the 'tee'
-		this.state= state instanceof Function? state( this): state|| []
+		this.state= state!== undefined? state: this.stateFactory()
 		this.returnValue= undefined
 		// signals to AsyncTeeFork's that they ought clear
 		this.clearPromise= Deferrant()
@@ -120,11 +127,17 @@ export class AsyncIteratorTee{
 		const
 		  currentClear= this.clearPromise,
 		  nextClear= this.clearPromise= Deferrant()
+		this.state= this.stateFactory()
 		currentClear.resolve({ next: this.clearPromise})
 	}
 
-	// this helps filters, who need to process either an AsyncTee or an AsyncTeeFork 'this':
-	// exposing the kk
+	stateFactory( ...args){
+		return this.constructor.stateFactory( ...args)
+	}
+
+	/**
+	* provide a consistent means to get the base asyncTee, for consumers of AsyncTee or AsyncTeeFork
+	*/
 	get asyncTee(){
 		return this
 	}
