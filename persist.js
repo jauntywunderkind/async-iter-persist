@@ -1,27 +1,31 @@
 "use module"
 import immediate from "p-immediate"
 import Deferrant from "deferrant"
-import AsyncTeeFork from "./async-tee-fork.js"
+import AsyncIterPersistFork from "./fork.js"
 
 let forkId= 0
 
-export class AsyncIteratorTee{
-	static stateFactory(){
+export class AsyncIteratorIterPersist{
+	static clearState(){
 		return []
 	}
 
-	constructor( wrappedIterator,{ notify= false, signal, filter, state, stateFactory, free, asyncTeeFork}= {}){
+	constructor( wrappedIterator,{ notify= false, signal, filter, state, clearState, free, asyncIterPersistFork}= {}){
 		// underlying iterator that we are "tee"'ing
 		this.wrappedIterator= wrappedIterator
 
-		// initialize & clear via stateFactory
-		if( stateFactory){
-			this.stateFactory= stateFactory
+		// initialize & clear via clearState
+		if( clearState){
+			this.clearState= clearState
 		}
 		// state is the existing data that's been seen, the 'tee'
-		this.state= state!== undefined? state: this.stateFactory()
+		if( state!== undefined){
+			this.state= state
+		}else{
+			this.clearState()
+		}
 		this.returnValue= undefined
-		// signals to AsyncTeeFork's that they ought clear
+		// signals to AsyncIterPersistFork's that they ought clear
 		this.clearPromise= Deferrant()
 		// notify is a rotating signals listeners that there is new data
 		if( notify){
@@ -33,13 +37,14 @@ export class AsyncIteratorTee{
 		if( free){
 			this.free= free
 		}
-		if( asyncTeeFork){
-			this.asyncTeeFork= asyncTeeFork
+		if( asyncIterPersistFork){
+			this.asyncIterPersistFork= asyncIterPersistFork
 		}
 
 		// pass through iterator values
 		this.value= null
 		this.done= false
+		this.clear()
 		return this
 	}
 
@@ -131,7 +136,7 @@ export class AsyncIteratorTee{
 	* create a "fork" which reads via notify
 	*/
 	tee( opts){
-		return new (this.asyncTeeFork())( this, opts)
+		return new (this.asyncIterPersistFork())( this, opts)
 	}
 
 	/**
@@ -146,30 +151,32 @@ export class AsyncIteratorTee{
 		  // prepare to signal anyone awaiting this clear
 		  currentClear= this.clearPromise,
 		  // set up a new signaller for the next clear
-		  clearPromise= this.clearPromise= Deferrant(),
-		  // actually clear our state
-		  state= this.state= this.stateFactory()
+		  clearPromise= this.clearPromise= Deferrant()
+		// actually clear our state
+		this.clearState()
 		if( currentClear){
 			// do signal anyone awaiting this clear
 			currentClear.resolve()
 		}
 	}
 
-	asyncTeeFork(){
-		return AsyncTeeFork
+	asyncIterPersistFork(){
+		return AsyncIterPersistFork
 	}
-	stateFactory( ...args){
-		return this.constructor.stateFactory( ...args)
+	clearState( ...args){
+		this.state= this.constructor.clearState( ...args)
 	}
 
 	/**
-	* provide a consistent means to get the base asyncTee, for consumers of AsyncTee or AsyncTeeFork
+	* provide a consistent means to get the base asyncIterPersist, for consumers of AsyncIterPersist or AsyncIterPersistFork
 	*/
-	get asyncTee(){
+	get asyncIterPersist(){
 		return this
 	}
 }
 export {
-  AsyncIteratorTee as default,
-  AsyncIteratorTee as asyncIteratorTee
+  AsyncIteratorIterPersist as default,
+  AsyncIteratorIterPersist as asyncIteratorIterPersist,
+  AsyncIteratorIterPersist as persist,
+  AsyncIteratorIterPersist as Persist
 }

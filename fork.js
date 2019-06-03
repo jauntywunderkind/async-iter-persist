@@ -2,17 +2,17 @@
 
 let forkId= 0
 
-export class AsyncTeeFork{
-	constructor( asyncTee, options){
+export class AsyncIterPersistFork{
+	constructor( asyncIterPersist, options){
 		// record parent
-		if( !asyncTee){
-			throw new Error( "Need an asyncTee")
+		if( !asyncIterPersist){
+			throw new Error( "Need an asyncIterPersist")
 		}
-		this.asyncTee= asyncTee
+		this.asyncIterPersist= asyncIterPersist
 
 		// record options & settings
-		if( asyncTee.clearForkPosition){
-			this.clearForkPosition= asyncTee.clearForkPosition
+		if( asyncIterPersist.clearForkPosition){
+			this.clearForkPosition= asyncIterPersist.clearForkPosition
 		}
 		if( options){
 			if( options.filter){
@@ -26,7 +26,7 @@ export class AsyncTeeFork{
 
 		// iteration will return this promise. zalgo may be faster in some cases
 		// but generally async-iterators are expected to return promises I think
-		this.thisPromise= options&& options.zalgo|| asyncTee.zalgo? undefined: Promise.resolve( this)
+		this.thisPromise= options&& options.zalgo|| asyncIterPersist.zalgo? undefined: Promise.resolve( this)
 
 		// iteration members
 		this.done= false
@@ -37,29 +37,29 @@ export class AsyncTeeFork{
 		// set up initial position
 		this.clearForkPosition()
 		// reset pos when parent signals clear
-		asyncTee.clearPromise.then( this.clear)
+		asyncIterPersist.clearPromise.then( this.clear)
 		return this
 	}
 	next(){
 		// rare-ish case: filter can terminate, while still waiting for a return value
 		if( this.waitForDone){
-			if( this.asyncTee.done){
+			if( this.asyncIterPersist.done){
 				// parent iterator is now done: terminate
-				this.done= this.asyncTee.done
-				this.value= this.asyncTee.returnValue
+				this.done= this.asyncIterPersist.done
+				this.value= this.asyncIterPersist.returnValue
 				return this.thisPromise|| this
 			}
 			// notified, but we're still waiting to be done
-			return this.asyncTee.notify.then( this.next)
+			return this.asyncIterPersist.notify.then( this.next)
 		}
 		// we're already done, so return
 		if( this.done){
 			return this.thisPromise|| this
 		}
 
-		const state= this.asyncTee.state
+		const state= this.asyncIterPersist.state
 		if( !state){
-			throw new Error( "Need an asyncTee#state")
+			throw new Error( "Need an asyncIterPersist#state")
 		}
 
 		// do we have state we can output now?
@@ -82,52 +82,52 @@ export class AsyncTeeFork{
 					this.done= next.done
 
 					if( next.waitForDone){
-						// wait for asyncTee to settle then returnValue
+						// wait for asyncIterPersist to settle then returnValue
 						this.waitForDone= true
 						return this.next()
 					}
 
 					// passReturn will immediately forward returnValue
-					// whether asyncTee is settled or not
+					// whether asyncIterPersist is settled or not
 					if( next.passReturn){
-						nextValue= this.asyncTee.returnValue
+						nextValue= this.asyncIterPersist.returnValue
 					}
 				}
 			}
 
 			// record next
 			this.value= nextValue
-			if( nextPos>= state.length&& this.asyncTee.done){
-				// end of state, and asyncTee is done
+			if( nextPos>= state.length&& this.asyncIterPersist.done){
+				// end of state, and asyncIterPersist is done
 				this.done= true
 			}
 			return this.thisPromise|| this
-		}else if( this.asyncTee.done){
-			this.value= this.asyncTee.returnValue
+		}else if( this.asyncIterPersist.done){
+			this.value= this.asyncIterPersist.returnValue
 			this.done= true
 			return this.thisPromise|| this
 		}
-		if( !this.asyncTee.notify){
-			throw new Error( "Need an asyncTee#notify")
+		if( !this.asyncIterPersist.notify){
+			throw new Error( "Need an asyncIterPersist#notify")
 		}
-		return this.asyncTee.notify.then( this.next)
+		return this.asyncIterPersist.notify.then( this.next)
 	}
 	tee(){
-		return new AsyncTeeFork( this.asyncTee)
+		return new AsyncIterPersistFork( this.asyncIterPersist)
 	}
 	[ Symbol.iterator](){
-		return this.asyncTee[ Symbol.iterator]()
+		return this.asyncIterPersist[ Symbol.iterator]()
 	}
 	[ Symbol.asyncIterator](){
 		if( !this.forkId){
 			this.forkId= ++forkId
 			return this
 		}
-		return new AsyncTeeFork( this.asyncTee)
+		return new AsyncIterPersistFork( this.asyncIterPersist)
 	}
 	clear(){
 		this.clearForkPosition()
-		const clearPromise= this.asyncTee&& this.asyncTee.clearPromise
+		const clearPromise= this.asyncIterPersist&& this.asyncIterPersist.clearPromise
 		if( clearPromise){
 			this.clearPromise.then( this.clear)
 		}
@@ -136,8 +136,10 @@ export class AsyncTeeFork{
 		this.pos= 0
 	}
 }
-let unboundNext= AsyncTeeFork.prototype.next
+let unboundNext= AsyncIterPersistFork.prototype.next
 export {
-  AsyncTeeFork as default,
-  AsyncTeeFork as asyncTeeFork
+  AsyncIterPersistFork as default,
+  AsyncIterPersistFork as asyncIterPersistFork,
+  AsyncIterPersistFork as fork,
+  AsyncIterPersistFork as Fork
 }

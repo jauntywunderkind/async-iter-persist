@@ -3,7 +3,7 @@ import tape from "tape"
 import immediate from "p-immediate"
 
 import producer from "./fixture/producer.js"
-import AsyncTee from ".."
+import AsyncIterPersist from ".."
 
 function iterate( t, iter, name, n= 4950){
 	const promise= new Promise( async function( resolve){
@@ -26,7 +26,7 @@ tape( "basic tee", async function(t){
 	// our fixture will be a tee on 0..99
 	const
 	  prod= producer( 100),
-	  tee= new AsyncTee( prod,{ notify: true})
+	  tee= new AsyncIterPersist( prod,{ notify: true})
 
 	// set up a "pre" accunulator before we start iterating
 	const

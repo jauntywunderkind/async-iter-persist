@@ -1,17 +1,17 @@
 {
-	"name": "async-tee",
-	"version": "1.1.0",
-	"description": "",
+	"name": "async-iter-persist",
+	"version": "1.2.0",
+	"description": "Pass through async-iterator that captures & persists seen.",
 	"type": "module",
 	"esm": true,
-	"main": "async-tee.js",
-	"module": "async-tee.js",
+	"main": "persist.js",
+	"module": "persist.js",
 	"scripts": {
 		"test": "node -r esm .test"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://archive.eldergods.com/async-tee"
+		"url": "https://archive.eldergods.com/async-iter-persist"
 	},
 	"keywords": [],
 	"author": "jauntywunderkind",
