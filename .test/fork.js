@@ -1,13 +1,23 @@
 "use module"
 import tape from "tape"
 import readRolling from "async-iter-read/rolling.js"
-//import readFixed from "async-iter-read/fixed.js"
-//import readForAwait from "async-iter-read/for-await.js"
+import readExpect from "async-iter-read/expect.js"
 
-import ReferenceUnique from "../reference.js"
+import { Fixture, a, b, c} from "./fixture.js"
 
-import { fixture, a, b, c} from "./fixture.js"
+tape( "prefork", function( t){
+	const
+	  f= Fixture(),
+	  iter= f[ Symbol.iterator],
+	  persist= Persist( f,{ notify: true}),
+	  prefork= persist.tee(),
+	  readPrefork= readRolling( prefork, 3),
+	  expectPrefork= Expect( readPrefork, expected)
 
+})
+
+tape( "postfork", function( t){
+})
 
 tape( "reference deduplicate", async function( t){
 	const f= fixture()
