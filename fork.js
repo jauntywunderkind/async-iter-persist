@@ -101,7 +101,8 @@ export class AsyncIterPersistFork{
 				// end of state, and asyncIterPersist is done
 				this.done= true
 			}
-			return this.thisPromise|| this
+			//return this.thisPromise|| this // iteration tests fail with this
+			return { value: this.value, done: this.done}
 		}else if( this.asyncIterPersist.done){
 			this.value= this.asyncIterPersist.returnValue
 			this.done= true
