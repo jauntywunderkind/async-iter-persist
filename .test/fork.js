@@ -39,7 +39,7 @@ tape( "tee before iterating", async function( t){
 	t.end()
 })
 
-tape( "postfork", async function( t){
+tape( "iterate then tee", async function( t){
 	// create a "persist" instance
 	const
 	  f= Range( 5),
@@ -67,38 +67,44 @@ tape( "postfork", async function( t){
 	t.end()
 })
 
-tape( "both", async function( t){
+tape( "tee, iterate, tee", async function( t){
+
+	// create a "persist" instance
+	const
+	  f= Range( 5),
+	  iter= f[ Symbol.iterator],
+	  persist= new Persist( f,{ notify: true})
+
+	// tee before reading out
+	const
+	  preTee= persist.tee(),
+	  // read and check tee (before iterating)
+	  expectPreTee= new Expect( preTee, range5),
+	  expectPreTeeIter= expectPreTee[ Symbol.asyncIterator]()
+	await PImmediate()
+	t.equal( expectPreTeeIter.count, 0, "preTee has not progressed")
+
+	// read out all the persist instance
+	const
+	  // read and check main persist
+	  expectPersist= new Expect( persist, range5),
+	  // this triggers expectPersist's iteration, blocking till done
+	  awaitPersist= await expectPersist
+
+	// tee again after completion
+	const
+	  // tee
+	  postTee= persist.tee(),
+	  // read and check tee (before iterating)
+	  expectPostTee= new Expect( postTee, range5),
+	  expectPostTeeIter= expectPostTee[ Symbol.asyncIterator]()
+	// everything is set up but tee makes no progress because persist has not iterated
+	await PImmediate()
+	t.equal( expectPreTeeIter.count, 0, "preTee has not progressed")
+	t.equal( expectPostTeeIter.count, 0, "postTee has not progressed")
+	await expectPreTeeIter.drain()
+	await expectPostTeeIter.drain()
+	t.equal( expectPreTeeIter.count, 5, "preTee read five correct elements")
+	t.equal( expectPostTeeIter.count, 5, "postTee read five correct elements")
 	t.end()
 })
-
-tape( "reference deduplicate", async function( t){
-	const f= fixture()
-
-	const
-	  // start an iteration to read all data, ahead of our main read
-	  preForkAhead= readFixed( refUnique.tee(), 8),
-	  preForkAll= readForAwait( refUnique.tee()),
-	  // read all elements in the main
-	  read= readForAwait( refUnique),
-	  // start an iteration after the fact
-	  postForkAhead= readFixed( refUnique.tee(), 8),
-	  postForkAll= readForAwait( refUnique.tee())
-
-	const
-	  // wait for main read to finish
-	  doneRead= await read,
-	  // start another read
-	  postReadForkAhead= readFixed( refUnique.tee(), 8),
-	  postReadForkAll= readForAwait( refUnique.tee()),
-	  // wait for iterations to finish
-	  donePreForkAhead= await preForkAhead,
-	  donePreForkAll= await preForkAll,
-	  donePostForkAhead= await postForkAhead,
-	  donePostForkAll= await postForkAll,
-	  donePostReadForkAhead= await postReadForkAhead,
-	  donePostReadForkAll= await postReadForkAll
-
-	console.log({ doneRead, donePreForkAhead, donePreForkAll, donePostForkAhead, donePostForkAll, donePostReadForkAhead, donePostForkAll})
-	t.end()
-})
-	
