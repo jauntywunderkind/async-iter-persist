@@ -11,6 +11,7 @@ const range5= [ 0, 1, 2, 3, 4]
 // TODO: alternatives that use readrolling
 
 tape( "tee before iterating", async function( t){
+	// create persist, tee, and start reading/verifying (expect) from tee
 	const
 	  // create a "persist" instance
 	  f= Range( 5),
@@ -32,16 +33,42 @@ tape( "tee before iterating", async function( t){
 	  // this triggers expectPersist's iteration
 	  awaitPersist= await expectPersist,
 	  // now expectTee can be read from too
-	  awaitTee= await expectTee
+	  awaitTee= await expectTeeIter.drain()
 
 	t.equal( awaitTee.count, 5, "read five correct elements")
 	t.end()
 })
 
 tape( "postfork", async function( t){
+	// create a "persist" instance
+	const
+	  f= Range( 5),
+	  iter= f[ Symbol.iterator],
+	  persist= new Persist( f,{ notify: true})
+	// read out all the persist instance
+	const
+	  // read and check main persist
+	  expectPersist= new Expect( persist, range5),
+	  // this triggers expectPersist's iteration
+	  awaitPersist= await expectPersist
+
+	// verify we can still tee & read out the tee
+	const
+	  // tee
+	  tee= persist.tee(),
+	  // read and check tee (before iterating)
+	  expectTee= new Expect( tee, range5),
+	  expectTeeIter= expectTee[ Symbol.asyncIterator]()
+	// everything is set up but tee makes no progress because persist has not iterated
+	await PImmediate()
+	t.equal( expectTeeIter.count, 0, "tee has not progressed")
+	await expectTeeIter.drain()
+	t.equal( expectTeeIter.count, 5, "read five correct elements")
+	t.end()
 })
 
 tape( "both", async function( t){
+	t.end()
 })
 
 tape( "reference deduplicate", async function( t){
