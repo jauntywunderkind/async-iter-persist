@@ -1,22 +1,47 @@
 "use module"
-import tape from "tape"
+import Range from "async-iter-range/immediate.js"
+import Expect from "async-iter-expect"
 import readRolling from "async-iter-read/rolling.js"
-import readExpect from "async-iter-read/expect.js"
+import PImmediate from "p-immediate"
+import tape from "tape"
+import Persist from ".."
 
-import { Fixture, a, b, c} from "./fixture.js"
+const range5= [ 0, 1, 2, 3, 4]
 
-tape( "prefork", function( t){
+// TODO: alternatives that use readrolling
+
+tape( "tee before iterating", async function( t){
 	const
-	  f= Fixture(),
+	  // create a "persist" instance
+	  f= Range( 5),
 	  iter= f[ Symbol.iterator],
-	  persist= Persist( f,{ notify: true}),
-	  prefork= persist.tee(),
-	  readPrefork= readRolling( prefork, 3),
-	  expectPrefork= Expect( readPrefork, expected)
+	  persist= new Persist( f,{ notify: true}),
+	  // tee
+	  tee= persist.tee(),
+	  // read and check tee (before iterating)
+	  expectTee= new Expect( tee, range5),
+	  expectTeeIter= expectTee[ Symbol.asyncIterator]()
+	// everything is set up but tee makes no progress because persist has not iterated
+	await PImmediate() // maybe wait longer?
+	t.equal( expectTeeIter.count, 0, "tee has not progressed")
 
+	// start reading in on persist, which will also flow to tee
+	const
+	  // read and check main persist
+	  expectPersist= new Expect( persist, range5),
+	  // this triggers expectPersist's iteration
+	  awaitPersist= await expectPersist,
+	  // now expectTee can be read from too
+	  awaitTee= await expectTee
+
+	t.equal( awaitTee.count, 5, "read five correct elements")
+	t.end()
 })
 
-tape( "postfork", function( t){
+tape( "postfork", async function( t){
+})
+
+tape( "both", async function( t){
 })
 
 tape( "reference deduplicate", async function( t){
