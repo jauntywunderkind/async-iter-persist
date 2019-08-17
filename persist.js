@@ -61,6 +61,7 @@ export class AsyncIteratorIterPersist{
 
 		if( this.filter){
 			// filter has power to modify any result
+			const was= next
 			next= this.filter( next)
 		}
 
@@ -143,7 +144,34 @@ export class AsyncIteratorIterPersist{
 	* add `newItem` to our state
 	*/
 	push( newItem){
+		if( this.markSet){
+			this.markSet.add( newItem)
+		}
 		this.state.push( newItem)
+	}
+
+
+	mark(){
+		if( this.markSet){
+			throw new Error( "Mark when already marking")
+		}
+		this.markSet= new Set()
+	}
+	*sweep(){
+		if( !this.markSet){
+			throw new Error( "No marks set to sweep")
+		}
+		for( let existing of this.state){
+			if( !this.markSet.has( existing)){
+				yield existing
+			}
+		}
+	}
+	unmark(){
+		if( !this.markSet){
+			throw new Error( "No marks to unmark")
+		}
+		this.markSet= null
 	}
 
 	clear(){
