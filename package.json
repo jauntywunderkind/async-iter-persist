@@ -22,6 +22,7 @@
 	},
 	"devDependencies": {
 		"async-iter-expect": "^2.0.0",
+		"async-iter-pipe": "^1.0.0",
 		"esm": "^3.2.25",
 		"tape": "^4.10.1"
 	}

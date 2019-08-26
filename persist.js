@@ -150,14 +150,13 @@ export class AsyncIteratorIterPersist{
 		this.state.push( newItem)
 	}
 
-
 	mark(){
 		if( this.markSet){
 			throw new Error( "Mark when already marking")
 		}
 		this.markSet= new Set()
 	}
-	*sweep(){
+	*sweep( unmark= false){
 		if( !this.markSet){
 			throw new Error( "No marks set to sweep")
 		}
@@ -165,6 +164,9 @@ export class AsyncIteratorIterPersist{
 			if( !this.markSet.has( existing)){
 				yield existing
 			}
+		}
+		if( unmark){
+			this.unmark()
 		}
 	}
 	unmark(){
